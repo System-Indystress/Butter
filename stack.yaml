@@ -1,0 +1,7 @@
+flags: {}
+packages:
+- .
+extra-deps:
+- forkable-monad-0.1.1
+resolver: lts-11.5
+allow-newer: true
