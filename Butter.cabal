@@ -1,0 +1,92 @@
+-- This file has been generated from package.yaml by hpack version 0.20.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 714e317e9131d3c91514636e2924c3caede26599ee88bbbb6e45fcbeca22ceeb
+
+name:           Butter
+version:        0.1.0.0
+description:    Please see the README on Github at <https://github.com/githubuser/Butter#readme>
+homepage:       https://github.com/githubuser/Butter#readme
+bug-reports:    https://github.com/githubuser/Butter/issues
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2018 Author name here
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
+
+extra-source-files:
+    ChangeLog.md
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/githubuser/Butter
+
+library
+  hs-source-dirs:
+      src
+  build-depends:
+      aeson
+    , base <5
+    , containers
+    , forkable-monad
+    , free
+    , network-simple
+    , stm
+    , template-haskell
+    , text
+    , transformers
+  exposed-modules:
+      Distrib.Butter
+      Distrib.Type
+      Lib
+  other-modules:
+      Paths_Butter
+  default-language: Haskell2010
+
+executable Butter-exe
+  main-is: Main.hs
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      Butter
+    , aeson
+    , base <5
+    , containers
+    , forkable-monad
+    , free
+    , network-simple
+    , stm
+    , template-haskell
+    , text
+    , transformers
+  other-modules:
+      Paths_Butter
+  default-language: Haskell2010
+
+test-suite Butter-test
+  type: exitcode-stdio-1.0
+  main-is: First.hs
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      Butter
+    , HUnit
+    , aeson
+    , base <5
+    , containers
+    , forkable-monad
+    , free
+    , network-simple
+    , stm
+    , template-haskell
+    , text
+    , transformers
+  other-modules:
+      Paths_Butter
+  default-language: Haskell2010
