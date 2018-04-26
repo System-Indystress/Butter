@@ -2,16 +2,16 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 714e317e9131d3c91514636e2924c3caede26599ee88bbbb6e45fcbeca22ceeb
+-- hash: 488afe7fa10967dee9273df6d46a32d9a5eb731d46451ef4704f1b75babd2519
 
-name:           Butter
-version:        0.1.0.0
-description:    Please see the README on Github at <https://github.com/githubuser/Butter#readme>
-homepage:       https://github.com/githubuser/Butter#readme
-bug-reports:    https://github.com/githubuser/Butter/issues
-author:         Author name here
-maintainer:     example@example.com
-copyright:      2018 Author name here
+name:           butter
+version:        0.0.4.0
+description:    Please see the README on Github at <https://github.com/System-Indystress/Butter#readme>
+homepage:       https://github.com/System-Indystress/Butter#readme
+bug-reports:    https://github.com/System-Indystress/Butter/issues
+author:         Matthew Ahrens
+maintainer:     matt.p.ahrens@gmail.com
+copyright:      2018 SID.run
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
@@ -23,7 +23,7 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/Butter
+  location: https://github.com/System-Indystress/Butter
 
 library
   hs-source-dirs:
@@ -41,31 +41,11 @@ library
     , transformers
   exposed-modules:
       Distrib.Butter
-      Distrib.Type
-      Lib
+      Distrib.Butter.Lang
+      Distrib.Butter.Lib
+      Distrib.TH
   other-modules:
-      Paths_Butter
-  default-language: Haskell2010
-
-executable Butter-exe
-  main-is: Main.hs
-  hs-source-dirs:
-      app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-depends:
-      Butter
-    , aeson
-    , base <5
-    , containers
-    , forkable-monad
-    , free
-    , network-simple
-    , stm
-    , template-haskell
-    , text
-    , transformers
-  other-modules:
-      Paths_Butter
+      Paths_butter
   default-language: Haskell2010
 
 test-suite Butter-test
@@ -75,10 +55,10 @@ test-suite Butter-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      Butter
-    , HUnit
+      HUnit
     , aeson
     , base <5
+    , butter
     , containers
     , forkable-monad
     , free
@@ -88,5 +68,5 @@ test-suite Butter-test
     , text
     , transformers
   other-modules:
-      Paths_Butter
+      Paths_butter
   default-language: Haskell2010

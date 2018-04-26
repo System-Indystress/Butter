@@ -1,5 +1,5 @@
 {-#LANGUAGE DeriveGeneric #-}
-module Distrib.Type (Type) where
+module Distrib.TH (Type) where
 import Data.Aeson
 import GHC.Generics
 
