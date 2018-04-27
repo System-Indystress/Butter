@@ -1,7 +1,8 @@
 # Butter
 For easily spreading around monadic computation
 ## Examples
-Example usage show in `test/First.hs`
+- Example Language usage in `test/first/Main.hs`
+- Example Protocol usage in `test/protocol/Main.hs` 
 ## Current Features
 Actor Monad Transformer that supports
 - self
