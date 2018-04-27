@@ -1,5 +1,5 @@
 name:                butter
-version:             0.0.3.0
+version:             0.0.5.0
 github:              "System-Indystress/Butter"
 license:             BSD3
 author:              "Matthew Ahrens"
@@ -40,9 +40,19 @@ library:
 #     - Butter
 
 tests:
-  Butter-test:
-    main:                First.hs
-    source-dirs:         test
+  Lang-test:
+    main:                Main.hs
+    source-dirs:         test/first
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - butter
+    - HUnit
+  Protocol-test:
+    main:                Main.hs
+    source-dirs:         test/protocol
     ghc-options:
     - -threaded
     - -rtsopts

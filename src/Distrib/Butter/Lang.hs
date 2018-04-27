@@ -46,6 +46,9 @@ data Action (m :: * -> *) next where
             -> Action m next
     Self    :: (ProcessID -> next)
             -> Action m next
+    Alive   :: ProcessID
+            -> (Bool -> next)
+            -> Action m next
 
 
 data Internal =
@@ -64,30 +67,36 @@ instance Functor (Action m) where
   fmap f (Friends returnFriends)  = (Friends $ f . returnFriends)
   fmap f (Lift ma returnA)        = (Lift ma $ f . returnA)
   fmap f (Self returnMe)          = (Self $ f . returnMe)
+  fmap f (Alive pid returnB)      = (Alive pid $ f . returnB)
 
 type Butter m a = Free (Action m) a
 
 
-connect :: (Monad m) => Text -> Int -> Butter m ()
+connect :: Text -> Int -> Butter m ()
 connect host port = (Free (Connect host port $ Pure ()))
 
-spawn :: (Monad m) => Butter m () -> Butter m ProcessID
+spawn :: Butter m () -> Butter m ProcessID
 spawn body = (Free (Spawn body (\i -> Pure  i)))
 
-self ::  (Monad m) => Butter m ProcessID
+self ::  Butter m ProcessID
 self = (Free (Self (\i -> Pure  i)))
 
-send :: (ToJSON a, Monad m) => ProcessID -> a -> Butter m ()
+send :: (ToJSON a) => ProcessID -> a -> Butter m ()
 send to msg = (Free (Send to msg $ Pure  ()))
 
-receive :: (FromJSON a, Monad m) => Butter m a
+receive :: (FromJSON a) => Butter m a
 receive = (Free $ Receive $ \msg -> Pure msg)
 
 lift :: m a -> Butter m a
 lift ma = Free (Lift ma $ \a -> Pure a)
 
+alive :: ProcessID -> Butter m (Bool)
+alive pid = (Free $ Alive pid $ \b -> Pure b)
+
 friend :: Text -> ProcessID
 friend host = PID host 0
+
+
 
 spreadLocal :: (MonadIO m, ForkableMonad m, ToJSON a, FromJSON a)
             => Butter m a -> m a
@@ -117,7 +126,14 @@ spread host port actor =
         return ()
 
       eval :: (MonadIO m, ForkableMonad m, ToJSON a, FromJSON a) => Int -> TVar Internal -> Butter m a -> m a
-      eval me stateVar (Pure a) = return a
+      eval me stateVar (Pure a) = do
+        liftIO $ atomically $ do
+          i@(Internal { procs   = ps }) <- readTVar stateVar
+          writeTVar stateVar $ i {procs = Prelude.filter (\n -> n /= me) ps}
+        return a
+      eval me stateVar (Free (Alive (PID _ n) returnB)) = do
+        i@(Internal {procs = ps}) <- liftIO $ readTVarIO stateVar
+        eval me stateVar $ returnB $ elem n ps
       eval me stateVar (Free (Lift ma returnA)) = do
         a <- ma
         eval me stateVar $ returnA a

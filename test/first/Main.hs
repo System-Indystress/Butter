@@ -1,6 +1,6 @@
 module Main where
 
-import Distrib.Butter
+import Distrib.Butter.Lang
 import Test.HUnit
 
 butter1 :: Butter IO ()

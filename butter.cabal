@@ -2,10 +2,10 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 488afe7fa10967dee9273df6d46a32d9a5eb731d46451ef4704f1b75babd2519
+-- hash: c91516f072c3ab9df806eac090e66475ed3aa1f5257e764757687a03b35f845b
 
 name:           butter
-version:        0.0.4.0
+version:        0.0.5.0
 description:    Please see the README on Github at <https://github.com/System-Indystress/Butter#readme>
 homepage:       https://github.com/System-Indystress/Butter#readme
 bug-reports:    https://github.com/System-Indystress/Butter/issues
@@ -48,11 +48,34 @@ library
       Paths_butter
   default-language: Haskell2010
 
-test-suite Butter-test
+test-suite Lang-test
   type: exitcode-stdio-1.0
-  main-is: First.hs
+  main-is: Main.hs
   hs-source-dirs:
-      test
+      test/first
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      HUnit
+    , aeson
+    , base <5
+    , butter
+    , containers
+    , forkable-monad
+    , free
+    , network-simple
+    , stm
+    , template-haskell
+    , text
+    , transformers
+  other-modules:
+      Paths_butter
+  default-language: Haskell2010
+
+test-suite Protocol-test
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs:
+      test/protocol
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       HUnit

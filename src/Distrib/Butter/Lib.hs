@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies, FlexibleContexts, ConstrainedClassMethods, AllowAmbiguousTypes #-}
 
 module Distrib.Butter.Lib where
 import Distrib.Butter.Lang
@@ -7,34 +7,43 @@ import Control.Concurrent.Forkable (ForkableMonad(..))
 import Control.Monad.IO.Class (MonadIO(..))
 import Data.Aeson (FromJSON(..), ToJSON(..))
 
+data Result p = Reply p (State p)
+              | NoReply (State p)
+              | Terminate
+
 class (ToJSON p, FromJSON p) => Protocol p where
   data State p
-  setup   :: (MonadIO m, ForkableMonad m)
-          => p -> Butter m (State p)
-  handle  :: (MonadIO m, ForkableMonad m)
-          => p -> State p -> Butter m (Maybe p,State p)
+  type Context p :: * -> *
+  setup   :: (MonadIO (Context p), ForkableMonad (Context p))
+          => p -> Butter (Context p) (State p)
+  handle  :: (MonadIO (Context p), ForkableMonad (Context p))
+          => p -> State p -> Butter (Context p) (Result p)
 
-start :: (MonadIO m, ForkableMonad m, Protocol p)
-      => p -> Butter m (ProcessID)
+start :: (MonadIO (Context p), ForkableMonad (Context p), Protocol p)
+      => p -> Butter (Context p) (ProcessID)
 start p =
   let server s = do
         (from,p)    <- receive
-        (result,s') <- handle p s
+        result <- handle p s
         case result of
-          Nothing    -> return ()
-          Just reply -> send from reply
-        server s'
+          Reply p s' -> do
+            send from p
+            server s'
+          NoReply s' -> server s'
+          Terminate  -> return ()
   in  do
     s <- setup p
     spawn $ server s
 
-call :: (MonadIO m, ForkableMonad m, Protocol p) => ProcessID -> p -> Butter m p
+call :: (MonadIO (Context p), ForkableMonad (Context p), Protocol p)
+     => ProcessID -> p -> Butter (Context p) p
 call to p = do
   me <- self
   send to (me,p)
   receive
 
-cast :: (MonadIO m, ForkableMonad m, Protocol p) => ProcessID -> p -> Butter m ()
+cast :: (MonadIO (Context p), ForkableMonad (Context p), Protocol p)
+     => ProcessID -> p -> Butter (Context p) ()
 cast to p = do
   me <- self
   send to (me,p)
