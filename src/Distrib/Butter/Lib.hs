@@ -10,6 +10,7 @@ import Data.Aeson (FromJSON(..), ToJSON(..))
 data Result p = Reply p (State p)
               | NoReply (State p)
               | Terminate
+              | Restart
 
 class (ToJSON p, FromJSON p) => Protocol p where
   data State p
@@ -23,14 +24,17 @@ start :: (MonadIO (Context p), ForkableMonad (Context p), Protocol p)
       => p -> Butter (Context p) (ProcessID)
 start p =
   let server s = do
-        (from,p)    <- receive
-        result <- handle p s
+        (from,p')    <- receive
+        result <- handle p' s
         case result of
-          Reply p s' -> do
-            send from p
+          Reply p'' s' -> do
+            send from p''
             server s'
           NoReply s' -> server s'
           Terminate  -> return ()
+          Restart    -> do
+            s' <- setup p'
+            server s'
   in  do
     s <- setup p
     spawn $ server s

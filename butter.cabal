@@ -2,10 +2,10 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c91516f072c3ab9df806eac090e66475ed3aa1f5257e764757687a03b35f845b
+-- hash: b3ba1985f7a4201b5a87b79b30da456fa3cfe2ebada7b80e8015f1896b53e824
 
 name:           butter
-version:        0.0.5.0
+version:        0.0.5.1
 description:    Please see the README on Github at <https://github.com/System-Indystress/Butter#readme>
 homepage:       https://github.com/System-Indystress/Butter#readme
 bug-reports:    https://github.com/System-Indystress/Butter/issues

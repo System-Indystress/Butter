@@ -2,7 +2,7 @@
 For easily spreading around monadic computation
 ## Examples
 - Example Language usage in `test/first/Main.hs`
-- Example Protocol usage in `test/protocol/Main.hs` 
+- Example Protocol usage in `test/protocol/Main.hs`
 ## Current Features
 Actor Monad Transformer that supports
 - self
@@ -11,6 +11,10 @@ Actor Monad Transformer that supports
 - spawn
   - built on Forkable-Monad and forkIO
 - lift
+- Protocol (OTP Genserver like typeclass)
+  - explicit State type family
+  - explicit Monadic Context type family
+  - Results API
 ## Future Core Language Features
 - monitor
 - connect to remote
@@ -25,6 +29,4 @@ Actor Monad Transformer that supports
   - selective/skippable send and receive
   - quasiquoter / convenience Syntax
 - OTP
-  - genserver
-  - eventserver
   - supervisor trees
