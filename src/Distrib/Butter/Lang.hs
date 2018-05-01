@@ -52,7 +52,7 @@ data Action (m :: * -> *) next where
 
 
 data Internal =
-  Internal { machine :: (Text,Socket)
+  Internal { machine :: (Text,Maybe Socket)
            , procs   :: [(Int)]
            , fresh   :: Int
            , friends :: [(Text, Socket)]
@@ -100,30 +100,26 @@ friend host = PID host 0
 
 spreadLocal :: (MonadIO m, ForkableMonad m, ToJSON a, FromJSON a)
             => Butter m a -> m a
-spreadLocal = spread "local" 9099
+spreadLocal = spread "local" Nothing
 
 spread :: (MonadIO m, ForkableMonad m, ToJSON a, FromJSON a)
-       => Text -> Int -> Butter m a -> m a
-spread host port actor =
+       => Text -> Maybe Int -> Butter m a -> m a
+spread host mport actor =
   let state :: (MonadIO m) => m Internal
       state = do
-        (sock,_) <- liftIO $ bindSock HostAny (show port)
+        msock <- case mport of
+                   Just port -> do
+                      (sock, _) <- liftIO $ bindSock HostAny (show port)
+                      return $ Just sock
+                   Nothing   -> return Nothing
+
         return $
-          Internal { machine = (host,sock)
+          Internal { machine = (host,msock)
                    , procs   = [0]
                    , fresh   = 1
                    , friends = []
                    , mail    = []
                    }
-      mailman :: (MonadIO m) => TVar Internal -> m ()
-      mailman stateVar = do
-        Internal { machine = (h,sock)
-                 , procs   = ps
-                 , friends = fs
-                 , fresh   = f
-                 , mail    = m
-                 } <- liftIO $ readTVarIO stateVar
-        return ()
 
       eval :: (MonadIO m, ForkableMonad m, ToJSON a, FromJSON a) => Int -> TVar Internal -> Butter m a -> m a
       eval me stateVar (Pure a) = do
@@ -210,5 +206,4 @@ spread host port actor =
   in do
     state' <- liftIO state
     stateVar <- liftIO $ newTVarIO state'
-    forkIO $ mailman stateVar
     eval 0 stateVar actor
