@@ -30,3 +30,5 @@ Actor Monad Transformer that supports
 - quasiquoter / convenience Syntax
 - OTP
   - supervisor trees
+- haddock documentation
+- versioned tutorial series
