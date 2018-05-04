@@ -23,6 +23,19 @@ butter2 = do
   lift $ assertEqual "spawn, send receive Int msg" 6 y
   return ()
 
+
+selective :: Butter IO ()
+selective = do
+  me <- self
+  spawn $ do
+    send me "hello"
+    send me True
+  b <- receive :: Butter IO Bool
+  s <- receive :: Butter IO String
+  lift $ assertEqual "receive out of order by type" True b
+  lift $ assertEqual "receive out of order by type" "hello" s
+  return ()
+
 main :: IO ()
 main = do
   runTestTT $
@@ -30,5 +43,7 @@ main = do
                TestCase $ spreadLocal butter1
              , TestLabel "self,send,receive,spawn" $
                TestCase $ spreadLocal butter2
+             , TestLabel "receive out of order by type" $
+               TestCase $ spreadLocal selective
              ]
   return ()

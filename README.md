@@ -8,6 +8,8 @@ Actor Monad Transformer that supports
 - self
 - send
 - receive
+  - selective based on type
+  - yields on empty receive or type mismatch
 - spawn
   - built on Forkable-Monad and forkIO
 - lift
@@ -25,8 +27,6 @@ Actor Monad Transformer that supports
   - monitor remote
 
 ## Future Library Features
-- pattern based send-receive
-  - selective/skippable send and receive
-  - quasiquoter / convenience Syntax
+- quasiquoter / convenience Syntax
 - OTP
   - supervisor trees

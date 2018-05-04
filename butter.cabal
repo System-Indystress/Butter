@@ -2,10 +2,10 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: cf9fbf9f6fa84e047e9ae120c5be27f82ad1f372bcde6b7e7d453f62dacb5c50
+-- hash: 1c811ebd37b2a24958483f2a258adb5ea7d3c4a4c3d71a0d4a5ffc11dc8fb3b9
 
 name:           butter
-version:        0.0.5.2
+version:        0.0.5.3
 description:    Please see the README on Github at <https://github.com/System-Indystress/Butter#readme>
 homepage:       https://github.com/System-Indystress/Butter#readme
 bug-reports:    https://github.com/System-Indystress/Butter/issues
@@ -43,6 +43,8 @@ library
       Distrib.Butter
       Distrib.Butter.Lang
       Distrib.Butter.Lib
+      Distrib.Butter.Lib.K
+      Distrib.Butter.Lib.Protocol
       Distrib.TH
   other-modules:
       Paths_butter

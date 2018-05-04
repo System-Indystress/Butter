@@ -1,4 +1,5 @@
 {-#LANGUAGE KindSignatures, GADTs, DeriveGeneric, OverloadedStrings, TemplateHaskell #-}
+{-# LANGUAGE StandaloneDeriving, PatternSynonyms, FlexibleInstances #-}
 module Distrib.Butter.Lang where
 
 import Control.Monad.Trans.Except
@@ -13,7 +14,12 @@ import Distrib.TH
 import Control.Monad.Free
 import Network.Simple.TCP
 import Control.Concurrent.Forkable
+import Control.Concurrent (threadDelay)
+import qualified Data.Sequence as Seq
+import Data.Sequence (Seq(..),(<|),(|>))
+
 import Debug.Trace (trace)
+
 
 data ProcessID = PID {machineID :: Text, processID :: Int}
   deriving (Show, Eq, Generic)
@@ -34,13 +40,11 @@ data Action (m :: * -> *) next where
     Spawn   :: Butter m ()
             -> (ProcessID -> next)
             -> Action m next
-    Send    :: (ToJSON a)
-            => ProcessID
-            -> a
+    Send    :: ProcessID
+            -> Value
             -> next
             -> Action m next
-    Receive :: (FromJSON b)
-            => (b -> next)
+    Receive :: (Value -> next)
             -> Action m next
     Friends :: ([Text] -> next)
             -> Action m next
@@ -56,7 +60,7 @@ data Internal =
            , procs   :: [(Int)]
            , fresh   :: Int
            , friends :: [(Text, Socket)]
-           , mail    :: [(ProcessID, ProcessID, Value)]
+           , mail    :: Seq (ProcessID, ProcessID, Value)
            }
 
 instance Functor (Action m) where
@@ -71,6 +75,8 @@ instance Functor (Action m) where
 
 type Butter m a = Free (Action m) a
 
+instance (MonadIO m) => MonadIO (Free (Action m)) where
+  liftIO = lift . liftIO
 
 connect :: Text -> Int -> Butter m ()
 connect host port = (Free (Connect host port $ Pure ()))
@@ -82,10 +88,18 @@ self ::  Butter m ProcessID
 self = (Free (Self (\i -> Pure  i)))
 
 send :: (ToJSON a) => ProcessID -> a -> Butter m ()
-send to msg = (Free (Send to msg $ Pure  ()))
+send to msg = (Free (Send to (toJSON msg) $ Pure ()))
 
-receive :: (FromJSON a) => Butter m a
-receive = (Free $ Receive $ \msg -> Pure msg)
+receive :: (MonadIO m, FromJSON a) => Butter m a
+receive =
+  (Free $ Receive $ \msg ->
+            case fromJSON msg of
+              Error _   -> do
+                lift $ liftIO $ yield
+                me <- self
+                (Free $ Send me msg (Pure ()))
+                receive
+              Success a -> return a)
 
 lift :: m a -> Butter m a
 lift ma = Free (Lift ma $ \a -> Pure a)
@@ -118,7 +132,7 @@ spread host mport actor =
                    , procs   = [0]
                    , fresh   = 1
                    , friends = []
-                   , mail    = []
+                   , mail    = Seq.empty
                    }
 
       eval :: (MonadIO m, ForkableMonad m, ToJSON a, FromJSON a) => Int -> TVar Internal -> Butter m a -> m a
@@ -163,7 +177,6 @@ spread host mport actor =
       eval me stateVar (Free (Send you msg next)) = do
         --trace "send" $ return ()
         liftIO $ atomically $ do
-          let v = toJSON msg
           i@(Internal { machine = (h,sock)
                       , procs   = ps
                       , friends = fs
@@ -171,7 +184,7 @@ spread host mport actor =
                       , mail    = m
                       }) <- readTVar stateVar
           writeTVar stateVar $
-            i {mail = (PID h me,you, v) : m}
+            i {mail = (PID h me,you, msg) <| m}
           return ()
         eval me stateVar next
       eval me stateVar (Free (Receive returnRest)) = (do
@@ -183,25 +196,21 @@ spread host mport actor =
                         , fresh   = f
                         , mail    = m
                         }) <- readTVar stateVar
-
             let (mmsg,rest) = find (PID h me) m
             writeTVar stateVar $ i {mail = rest}
             return mmsg
         case mmsg of
-          Just msg -> do
-            --trace (show msg) $ return ()
-            let v = case fromJSON msg of
-                      Error s   -> error $ "Receive error: " ++ s
-                      Success a -> a
-            eval me stateVar (returnRest v)
-          Nothing  -> eval me stateVar (Free (Receive returnRest)))
+          Just msg -> eval me stateVar (returnRest msg)
+          Nothing  -> do
+            liftIO yield
+            eval me stateVar (Free (Receive returnRest)))
 
           where
-            find who [] = (Nothing,[])
-            find who ((from,to, msg):rest)
+            find who Empty = (Nothing,Seq.empty)
+            find who (rest :|> (from,to, msg))
               | to == who = (Just msg,rest)
               | otherwise = let (ans,rest') = find who rest
-                            in (ans,(from,to,msg) : rest')
+                            in (ans,rest |> (from,to,msg))
 
   in do
     state' <- liftIO state

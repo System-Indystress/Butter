@@ -2,7 +2,7 @@
 module Main where
 
 import Distrib.Butter.Lang
-import Distrib.Butter.Lib
+import Distrib.Butter.Lib.Protocol
 import Test.HUnit
 
 import Control.Monad.IO.Class (liftIO)
