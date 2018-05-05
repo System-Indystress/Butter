@@ -1,5 +1,5 @@
 name:                butter
-version:             0.0.6.0
+version:             0.0.7.0
 github:              "System-Indystress/Butter"
 license:             BSD3
 author:              "Matthew Ahrens"
@@ -23,6 +23,8 @@ dependencies:
 - template-haskell
 - free
 - network-simple
+- bytestring
+- HUnit
 
 
 library:

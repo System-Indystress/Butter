@@ -10,30 +10,40 @@ import Control.Concurrent.STM
 import Control.Monad.IO.Class (liftIO, MonadIO(..))
 import qualified Data.Map as M
 import Data.Map (Map(..))
-import Distrib.TH
+
 import Control.Monad.Free
-import Network.Simple.TCP
+import Network.Simple.TCP as N
 import Control.Concurrent.Forkable
 import Control.Concurrent (threadDelay)
 import qualified Data.Sequence as Seq
 import Data.Sequence (Seq(..),(<|),(|>))
+import qualified Data.ByteString as B
+import Data.ByteString(ByteString(..))
+import qualified Data.ByteString.Lazy as LB
+import qualified Data.Text.Encoding as E
+import Debug.Trace (trace, traceIO)
+import Control.Monad (forever)
 
-import Debug.Trace (trace)
 
-
-data ProcessID = PID {machineID :: Text, processID :: Int}
+data ProcessID = PID   {machineID :: Text, processID :: Int}
+               | Named {hostname :: Text, processName :: Text}
   deriving (Show, Eq, Generic)
+
+to :: Text -> Text -> ProcessID
+to = Named
 
 instance ToJSON (ProcessID) where
   toEncoding = genericToEncoding defaultOptions
 
 instance FromJSON (ProcessID)
 
+
 data Action (m :: * -> *) next where
     Lift    :: m a
             -> (a -> next)
             -> Action m next
     Connect :: Text
+            -> Text
             -> Int
             -> next
             -> Action m next
@@ -41,10 +51,10 @@ data Action (m :: * -> *) next where
             -> (ProcessID -> next)
             -> Action m next
     Send    :: ProcessID
-            -> Value
+            -> LB.ByteString
             -> next
             -> Action m next
-    Receive :: (Value -> next)
+    Receive :: (LB.ByteString -> next)
             -> Action m next
     Friends :: ([Text] -> next)
             -> Action m next
@@ -53,33 +63,38 @@ data Action (m :: * -> *) next where
     Alive   :: ProcessID
             -> (Bool -> next)
             -> Action m next
+    Name    :: Text
+            -> next
+            -> Action m next
 
 
 data Internal =
-  Internal { machine :: (Text,Maybe Socket)
+  Internal { machine :: (Text)
            , procs   :: [(Int)]
+           , names   :: Map Text Int
            , fresh   :: Int
-           , friends :: [(Text, Socket)]
-           , mail    :: Seq (ProcessID, ProcessID, Value)
+           , friends :: Map Text Socket
+           , mail    :: Seq (ProcessID, ProcessID, LB.ByteString)
            }
 
 instance Functor (Action m) where
-  fmap f (Spawn body returnPID)   = (Spawn body (f . returnPID))
-  fmap f (Send pid msg next)      = (Send pid msg $ f next)
-  fmap f (Receive returnMSG)      = (Receive $ f . returnMSG)
-  fmap f (Connect host port next) = (Connect host port $ f next)
-  fmap f (Friends returnFriends)  = (Friends $ f . returnFriends)
-  fmap f (Lift ma returnA)        = (Lift ma $ f . returnA)
-  fmap f (Self returnMe)          = (Self $ f . returnMe)
-  fmap f (Alive pid returnB)      = (Alive pid $ f . returnB)
+  fmap f (Spawn body returnPID)        = (Spawn body (f . returnPID))
+  fmap f (Send pid msg next)           = (Send pid msg $ f next)
+  fmap f (Receive returnMSG)           = (Receive $ f . returnMSG)
+  fmap f (Connect name host port next) = (Connect name host port $ f next)
+  fmap f (Friends returnFriends)       = (Friends $ f . returnFriends)
+  fmap f (Lift ma returnA)             = (Lift ma $ f . returnA)
+  fmap f (Self returnMe)               = (Self $ f . returnMe)
+  fmap f (Alive pid returnB)           = (Alive pid $ f . returnB)
+  fmap f (Name n next)                 = (Name n $ f next)
 
 type Butter m a = Free (Action m) a
 
 instance (MonadIO m) => MonadIO (Free (Action m)) where
   liftIO = lift . liftIO
 
-connect :: Text -> Int -> Butter m ()
-connect host port = (Free (Connect host port $ Pure ()))
+connect :: Text -> Text -> Int -> Butter m ()
+connect name host port = (Free (Connect name host port $ Pure ()))
 
 spawn :: Butter m () -> Butter m ProcessID
 spawn body = (Free (Spawn body (\i -> Pure  i)))
@@ -87,30 +102,28 @@ spawn body = (Free (Spawn body (\i -> Pure  i)))
 self ::  Butter m ProcessID
 self = (Free (Self (\i -> Pure  i)))
 
+name :: Text -> Butter m ()
+name n = (Free (Name n $ Pure ()))
+
 send :: (ToJSON a) => ProcessID -> a -> Butter m ()
-send to msg = (Free (Send to (toJSON msg) $ Pure ()))
+send to msg = (Free (Send to (encode msg) $ Pure ()))
 
 receive :: (MonadIO m, FromJSON a) => Butter m a
 receive =
   (Free $ Receive $ \msg ->
-            case fromJSON msg of
-              Error _   -> do
+            case decode msg of
+              Nothing   -> do
                 lift $ liftIO $ yield
                 me <- self
                 (Free $ Send me msg (Pure ()))
                 receive
-              Success a -> return a)
+              Just a -> return a)
 
 lift :: m a -> Butter m a
 lift ma = Free (Lift ma $ \a -> Pure a)
 
 alive :: ProcessID -> Butter m (Bool)
 alive pid = (Free $ Alive pid $ \b -> Pure b)
-
-friend :: Text -> ProcessID
-friend host = PID host 0
-
-
 
 spreadLocal :: (MonadIO m, ForkableMonad m, ToJSON a, FromJSON a)
             => Butter m a -> m a
@@ -119,21 +132,29 @@ spreadLocal = spread "local" Nothing
 spread :: (MonadIO m, ForkableMonad m, ToJSON a, FromJSON a)
        => Text -> Maybe Int -> Butter m a -> m a
 spread host mport actor =
-  let state :: (MonadIO m) => m Internal
-      state = do
-        msock <- case mport of
-                   Just port -> do
-                      (sock, _) <- liftIO $ bindSock HostAny (show port)
-                      return $ Just sock
-                   Nothing   -> return Nothing
-
-        return $
-          Internal { machine = (host,msock)
-                   , procs   = [0]
-                   , fresh   = 1
-                   , friends = []
-                   , mail    = Seq.empty
-                   }
+  let setup :: (MonadIO m) => TVar Internal -> Maybe Int -> m ()
+      setup var Nothing     = return ()
+      setup var (Just port) = do
+        serve (HostAny) (show port) (\(sock,addr) -> forever $ do
+          mbs <- recv sock 1
+          case mbs of
+            Nothing  -> return ()
+            Just len -> do
+              let len' = (fromInteger $ toInteger $ Prelude.head $ B.unpack len) :: Int
+              mbs' <- recv sock len'
+              case mbs' of
+                (Just payload) -> do
+                  atomically $ modifyTVar var (\s ->
+                    case (decode $ LB.fromStrict payload) of
+                      (Just (f, Named _ n, msg)) ->
+                        case M.lookup n (names s) of
+                          Just i -> s{mail = (f, (PID (machine s) i), LB.pack msg)<| (mail s)}
+                          Nothing -> s
+                      (Just (f,t,msg)) ->
+                        s{mail = (f, t, LB.pack msg)<| (mail s)}
+                      _                -> s)
+                  return ()
+                _ -> return ())
 
       eval :: (MonadIO m, ForkableMonad m, ToJSON a, FromJSON a) => Int -> TVar Internal -> Butter m a -> m a
       eval me stateVar (Pure a) = do
@@ -141,26 +162,42 @@ spread host mport actor =
           i@(Internal { procs   = ps }) <- readTVar stateVar
           writeTVar stateVar $ i {procs = Prelude.filter (\n -> n /= me) ps}
         return a
+      eval me stateVar (Free (Name n next)) = do
+        liftIO $ atomically $ modifyTVar stateVar $ (\s ->
+          s {names = M.insert n me (names s)})
+        eval me stateVar next
       eval me stateVar (Free (Alive (PID _ n) returnB)) = do
         i@(Internal {procs = ps}) <- liftIO $ readTVarIO stateVar
         eval me stateVar $ returnB $ elem n ps
+      eval me stateVar (Free (Alive (Named h n) returnB)) = do
+        i <- liftIO $ readTVarIO stateVar
+        if (machine i) == h
+        then case M.lookup n $ names i of
+               Just pnum -> eval me stateVar $ returnB $ elem pnum (procs i )
+               Nothing   -> eval me stateVar $ returnB False
+        else error "Unimplemented: Alive of remote processes"
+
       eval me stateVar (Free (Lift ma returnA)) = do
         a <- ma
         eval me stateVar $ returnA a
       eval me stateVar (Free (Friends returnFriends)) = do
-        i@(Internal { machine = (h,sock)
+        i@(Internal { machine = h
                     , procs   = ps
                     , friends = fs
                     , fresh   = f
                     , mail    = m
                     }) <- liftIO $ readTVarIO stateVar
-        eval me stateVar $ returnFriends $ Prelude.map fst fs
-      eval me stateVar (Free (Connect name port rest)) = do
+        eval me stateVar $ returnFriends $ M.keys fs
+      eval me stateVar (Free (Connect name host port rest)) = do
+        (sock,addr) <- liftIO $ connectSock (unpack host) (show port)
+        liftIO $ atomically $ modifyTVar stateVar $ (\s ->
+          s {friends = M.insert name sock $ friends s})
         eval me stateVar rest
+
       eval me stateVar (Free (Spawn body returnPID)) = do
         (h,f) <-
           liftIO $ atomically $ do
-            i@(Internal { machine = (h,_)
+            i@(Internal { machine = h
                         , procs   = ps
                         , fresh   = f
                         }) <- readTVar stateVar
@@ -171,26 +208,46 @@ spread host mport actor =
         eval me stateVar (returnPID pid)
       eval me stateVar (Free (Self returnMe)) = do
         --trace "self" $ return ()
-        Internal {machine = (h,_)} <- liftIO $ readTVarIO stateVar
+        Internal {machine = h} <- liftIO $ readTVarIO stateVar
         let s = PID h me
         eval me stateVar $ returnMe s
       eval me stateVar (Free (Send you msg next)) = do
         --trace "send" $ return ()
-        liftIO $ atomically $ do
-          i@(Internal { machine = (h,sock)
-                      , procs   = ps
-                      , friends = fs
-                      , fresh   = f
-                      , mail    = m
-                      }) <- readTVar stateVar
-          writeTVar stateVar $
-            i {mail = (PID h me,you, msg) <| m}
-          return ()
+        meffect <-
+          liftIO $ atomically $ do
+            i@(Internal { machine = h
+                        , procs   = ps
+                        , names   = n
+                        , friends = fs
+                        , fresh   = f
+                        , mail    = m
+                        }) <- readTVar stateVar
+            case you of
+               Named h' p | h == h' ->
+                case M.lookup p n of
+                  Nothing -> return Nothing
+                  Just pnum -> do
+                    writeTVar stateVar $
+                      i {mail = (PID h me,PID h pnum, msg) <| m}
+                    return Nothing
+               Named h' p            ->
+                 case M.lookup h' fs of
+                   Nothing   -> return Nothing
+                   Just sock ->  do
+                     let payload = LB.toStrict $ encode $ (PID h me, Named h' p, LB.unpack msg)
+                     return $ Just $ N.send sock $
+                       (fromInteger $ toInteger $ B.length payload) `B.cons` payload
+               pid -> do
+                 writeTVar stateVar $ i {mail = (PID h me,pid, msg) <| m}
+                 return Nothing
+        case meffect of
+          Just e -> trace "foo\n" $ liftIO e >> return ()
+          Nothing -> return ()
         eval me stateVar next
       eval me stateVar (Free (Receive returnRest)) = (do
         mmsg <-
           liftIO $ atomically $ do
-            i@(Internal { machine = (h,sock)
+            i@(Internal { machine = h
                         , procs   = ps
                         , friends = fs
                         , fresh   = f
@@ -213,6 +270,13 @@ spread host mport actor =
                             in (ans,rest |> (from,to,msg))
 
   in do
-    state' <- liftIO state
-    stateVar <- liftIO $ newTVarIO state'
+    stateVar <- liftIO $ newTVarIO $
+                   Internal { machine = host
+                            , procs   = [0]
+                            , names   = M.empty
+                            , fresh   = 1
+                            , friends = M.empty
+                            , mail    = Seq.empty
+                            }
+    setup stateVar mport
     eval 0 stateVar actor

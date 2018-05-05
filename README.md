@@ -3,7 +3,7 @@ For easily spreading around monadic computation
 ## Examples
 - Example Language usage in `test/first/Main.hs`
 - Example Protocol usage in `test/protocol/Main.hs`
-## Current Features
+## Current Language Features
 Actor Monad Transformer that supports
 - self
 - send
@@ -13,18 +13,22 @@ Actor Monad Transformer that supports
 - spawn
   - built on Forkable-Monad and forkIO
 - lift
+- named pids
+- connect to remote
+  - send via named
+
+# Current Library Features
 - Protocol (OTP Genserver like typeclass)
   - explicit State type family
   - explicit Monadic Context type family
   - Results API
+  
 ## Future Core Language Features
 - monitor
-- connect to remote
-- send to remote
-- query remote
 - serializable computation typeclass
   - spawn remote
   - monitor remote
+- query remote
 
 ## Future Library Features
 - quasiquoter / convenience Syntax
