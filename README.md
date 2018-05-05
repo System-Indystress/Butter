@@ -22,13 +22,15 @@ Actor Monad Transformer that supports
   - explicit State type family
   - explicit Monadic Context type family
   - Results API
-  
+
 ## Future Core Language Features
 - monitor
 - serializable computation typeclass
   - spawn remote
   - monitor remote
 - query remote
+- encrypted message passing by default
+  - config to change encode and decode
 
 ## Future Library Features
 - quasiquoter / convenience Syntax
