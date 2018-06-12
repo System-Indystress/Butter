@@ -10,7 +10,8 @@ import Control.Concurrent.STM
 import Control.Monad.IO.Class (liftIO, MonadIO(..))
 import qualified Data.Map as M
 import Data.Map (Map(..))
-
+import Control.Exception
+import System.IO.Error (isDoesNotExistError)
 import Control.Monad.Free
 import Network.Simple.TCP as N
 import Control.Concurrent.Forkable
@@ -18,11 +19,12 @@ import Control.Concurrent (threadDelay)
 import qualified Data.Sequence as Seq
 import Data.Sequence (Seq(..),(<|),(|>))
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as BW
 import Data.ByteString(ByteString(..))
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.Text.Encoding as E
 import Debug.Trace (trace, traceIO)
-import Control.Monad (forever)
+import Control.Monad (forever, guard)
 
 
 data ProcessID = PID   {machineID :: Text, processID :: Int}
@@ -132,15 +134,23 @@ spreadLocal = spread "local" Nothing
 spread :: (MonadIO m, ForkableMonad m, ToJSON a, FromJSON a)
        => Text -> Maybe Int -> Butter m a -> m a
 spread host mport actor =
-  let setup :: (MonadIO m) => TVar Internal -> Maybe Int -> m ()
+  let
+      getLength sock acc = do
+        mbs <- recv sock 1
+        case mbs of
+          Nothing   -> getLength sock acc
+          Just char ->
+            if char == "§" then return acc else getLength sock $ acc `B.append` char
+      setup :: (MonadIO m, ForkableMonad m) => TVar Internal -> Maybe Int -> m ()
       setup var Nothing     = return ()
       setup var (Just port) = do
-        serve (HostAny) (show port) (\(sock,addr) -> forever $ do
+        forkIO $ serve (HostAny) (show port) (\(sock,addr) -> do
           mbs <- recv sock 1
-          case mbs of
-            Nothing  -> return ()
-            Just len -> do
-              let len' = (fromInteger $ toInteger $ Prelude.head $ B.unpack len) :: Int
+          if mbs /= Just (BW.pack "§")
+          then return ()
+          else do
+              len <- getLength sock B.empty
+              let len' = (read $ BW.unpack len) :: Int
               mbs' <- recv sock len'
               case mbs' of
                 (Just payload) -> do
@@ -155,6 +165,7 @@ spread host mport actor =
                       _                -> s)
                   return ()
                 _ -> return ())
+        return ()
 
       eval :: (MonadIO m, ForkableMonad m, ToJSON a, FromJSON a) => Int -> TVar Internal -> Butter m a -> m a
       eval me stateVar (Pure a) = do
@@ -189,10 +200,15 @@ spread host mport actor =
                     }) <- liftIO $ readTVarIO stateVar
         eval me stateVar $ returnFriends $ M.keys fs
       eval me stateVar (Free (Connect name host port rest)) = do
-        (sock,addr) <- liftIO $ connectSock (unpack host) (show port)
-        liftIO $ atomically $ modifyTVar stateVar $ (\s ->
-          s {friends = M.insert name sock $ friends s})
-        eval me stateVar rest
+        conn <- liftIO $ tryJust (guard . isDoesNotExistError) $ connectSock (unpack host) (show port)
+        case conn of
+          Left _ -> do
+            liftIO yield
+            eval me stateVar (Free (Connect name host port rest))
+          Right (sock,addr) -> do
+            liftIO $ atomically $ modifyTVar stateVar $ (\s ->
+              s {friends = M.insert name sock $ friends s})
+            eval me stateVar rest
 
       eval me stateVar (Free (Spawn body returnPID)) = do
         (h,f) <-
@@ -235,13 +251,13 @@ spread host mport actor =
                    Nothing   -> return Nothing
                    Just sock ->  do
                      let payload = LB.toStrict $ encode $ (PID h me, Named h' p, LB.unpack msg)
-                     return $ Just $ N.send sock $
-                       (fromInteger $ toInteger $ B.length payload) `B.cons` payload
+                     return $ Just $ N.send sock (
+                      "§"  `B.append` (BW.pack $ show $  (B.length payload)) `B.append` "§" `B.append` payload)
                pid -> do
                  writeTVar stateVar $ i {mail = (PID h me,pid, msg) <| m}
                  return Nothing
         case meffect of
-          Just e -> trace "foo\n" $ liftIO e >> return ()
+          Just e -> liftIO e >> return ()
           Nothing -> return ()
         eval me stateVar next
       eval me stateVar (Free (Receive returnRest)) = (do

@@ -5,6 +5,8 @@ import Distrib.Butter.Lang
 import Test.HUnit
 import Data.Text
 import Control.Concurrent (forkIO)
+import Debug.Trace
+import Control.Concurrent
 
 butter1 :: Butter IO ()
 butter1 = do
@@ -41,32 +43,31 @@ selective = do
 
 distr :: IO ()
 distr = do
-  forkIO $ spread "0.0.0.0" (Just 8000) $ do
+  forkIO $ spread "node2" (Just 9669) $ do
+    connect "friend" "127.0.0.1" 9696
+    send (to "friend" "hello") ("*wave*" :: String)
+    return ()
+  spread "node1" (Just 9696) $ do
     name "hello"
     msg <- receive :: Butter IO String
-    lift $ putStrLn msg
     lift $ assertEqual "got the message from another node" "*wave*" msg
-    return ()
-  forkIO $ spread "0.0.0.0" (Just 8001) $ do
-    connect "friend" "0.0.0.0" 8000
-    send (to "friend" "hello") ("*wave*" :: String)
     return ()
   return ()
 
 distr2 :: IO ()
 distr2 = do
-  forkIO $ spread "0.0.0.0" (Just 8002) $ do
+  forkIO $ spread "node1" (Just 8002) $ do
     name "ping"
-    connect "node2" "0.0.0.0" 8003
-    send (to "node2" "hello") ("ping" :: Text)
-    msg <- receive :: Butter IO Text
+    connect "node2" "127.0.0.1" 8003
+    send (to "node2" "hello") ("ping" :: String)
+    msg <- receive :: Butter IO String
     lift $ assertEqual "got message" "pong" msg
     return ()
-  forkIO $ spread "0.0.0.0" (Just 8003) $ do
+  spread "node2" (Just 8003) $ do
     name "hello"
-    connect "node1" "0.0.0.0" 8002
-    who <- receive :: Butter IO Text
-    send (to "node1" who) ("pong" :: Text)
+    connect "node1" "127.0.0.1" 8002
+    who <- receive :: Butter IO String
+    send (to "node1" (pack who)) ("pong" :: String)
     return ()
   return ()
 
