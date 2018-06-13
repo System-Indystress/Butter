@@ -2,11 +2,13 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f57ce077418040d19b68371f2a8df43ac2391d22b9fa32f62bbba6521adb1183
+-- hash: dcd9c579ed2533a947206520a9b5db825a465ef960d47aa989d5ee931cbdb6e3
 
 name:           butter
-version:        0.0.7.0
+version:        0.1.0.0
+synopsis:       Monad Transformer for Asyncronous Message Passing
 description:    Please see the README on Github at <https://github.com/System-Indystress/Butter#readme>
+category:       Distributed Computing, Concurrency
 homepage:       https://github.com/System-Indystress/Butter#readme
 bug-reports:    https://github.com/System-Indystress/Butter/issues
 author:         Matthew Ahrens

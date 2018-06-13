@@ -1,10 +1,14 @@
 name:                butter
-version:             0.1.0.0
+version:             0.1.0.1
 github:              "System-Indystress/Butter"
 license:             BSD3
 author:              "Matthew Ahrens"
 maintainer:          "matt.p.ahrens@gmail.com"
 copyright:           "2018 SID.run"
+category:            Distributed Computing, Concurrency
+synopsis:            Monad Transformer for Asyncronous Message Passing
+description: <          A Monad Transformer for spreading arbitrary Monadic computation
+                     across several processes using Erlang+OTP inspired conventions.
 
 extra-source-files:
 - README.md
