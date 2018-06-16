@@ -7,8 +7,6 @@ import Data.Aeson
 import GHC.Generics
 import Control.Monad.Free
 
-deriving instance Generic a => Generic (Free f a)
-
 class (Monad m) => SerialM m where
   toV   :: m a -> Value
   fromV :: Value -> m a

@@ -1,11 +1,11 @@
--- This file has been generated from package.yaml by hpack version 0.20.0.
+-- This file has been generated from package.yaml by hpack version 0.28.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: dcd9c579ed2533a947206520a9b5db825a465ef960d47aa989d5ee931cbdb6e3
+-- hash: edd6869e85954e6b4c2c20e390b378baf65ee06700fd249c0ffbd20ebd881186
 
 name:           butter
-version:        0.1.0.0
+version:        0.1.0.2
 synopsis:       Monad Transformer for Asyncronous Message Passing
 description:    Please see the README on Github at <https://github.com/System-Indystress/Butter#readme>
 category:       Distributed Computing, Concurrency
@@ -18,7 +18,6 @@ license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
 cabal-version:  >= 1.10
-
 extra-source-files:
     ChangeLog.md
     README.md
@@ -36,7 +35,7 @@ library
     , base <5
     , bytestring
     , containers
-    , forkable-monad
+    , forkable-monad >=0.2.0.0
     , free
     , network-simple
     , stm
@@ -66,7 +65,7 @@ test-suite Lang-test
     , butter
     , bytestring
     , containers
-    , forkable-monad
+    , forkable-monad >=0.2.0.0
     , free
     , network-simple
     , stm
@@ -90,7 +89,7 @@ test-suite Protocol-test
     , butter
     , bytestring
     , containers
-    , forkable-monad
+    , forkable-monad >=0.2.0.0
     , free
     , network-simple
     , stm

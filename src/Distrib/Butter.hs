@@ -1,4 +1,9 @@
-module Distrib.Butter where
+{-#LANGUAGE FlexibleInstances, UndecidableInstances#-}
+module Distrib.Butter
+( module Distrib.Butter
+, module Lang
+, module Lib
+)where
 
-import Distrib.Butter.Lang
-import Distrib.Butter.Lib
+import qualified Distrib.Butter.Lang as Lang
+import qualified Distrib.Butter.Lib  as Lib
