@@ -144,7 +144,7 @@ spread host mport actor =
       setup :: (MonadIO m, ForkableMonad m) => TVar Internal -> Maybe Int -> m ()
       setup var Nothing     = return ()
       setup var (Just port) = do
-        forkIO $ serve (HostAny) (show port) (\(sock,addr) -> do
+        forkIO $ serve (HostAny) (show port) (\(sock,addr) -> forever $ do
           mbs <- recv sock 1
           if mbs /= Just (BW.pack "§")
           then return ()
