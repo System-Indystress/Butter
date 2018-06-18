@@ -44,7 +44,7 @@ selective = do
 distr :: IO ()
 distr = do
   forkIO $ spread "node2" (Just 9669) $ do
-    connect "friend" "127.0.0.1" 9696
+    connect "friend" "localhost" 9696
     send (to "friend" "hello") ("*wave*" :: String)
     return ()
   spread "node1" (Just 9696) $ do
@@ -52,24 +52,22 @@ distr = do
     msg <- receive :: Butter IO String
     lift $ assertEqual "got the message from another node" "*wave*" msg
     return ()
-  return ()
 
 distr2 :: IO ()
 distr2 = do
   forkIO $ spread "node1" (Just 8002) $ do
     name "ping"
-    connect "node2" "127.0.0.1" 8003
+    connect "node2" "localhost" 8003
     send (to "node2" "hello") ("ping" :: String)
     msg <- receive :: Butter IO String
     lift $ assertEqual "got message" "pong" msg
     return ()
   spread "node2" (Just 8003) $ do
     name "hello"
-    connect "node1" "127.0.0.1" 8002
+    connect "node1" "localhost" 8002
     who <- receive :: Butter IO String
     send (to "node1" (pack who)) ("pong" :: String)
     return ()
-  return ()
 
 
 
