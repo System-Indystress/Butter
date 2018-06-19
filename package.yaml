@@ -46,8 +46,8 @@ library:
 
 tests:
   Lang-test:
-    main:                Main.hs
-    source-dirs:         test/first
+    main:                first/Main.hs
+    source-dirs:         test
     ghc-options:
     - -threaded
     - -rtsopts
@@ -56,8 +56,8 @@ tests:
     - butter
     - HUnit
   Protocol-test:
-    main:                Main.hs
-    source-dirs:         test/protocol
+    main:                protocol/Main.hs
+    source-dirs:         test
     ghc-options:
     - -threaded
     - -rtsopts

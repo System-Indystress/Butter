@@ -1,8 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
+import Butter.HUnit
+
 import Distrib.Butter.Lang
-import Test.HUnit
 import Data.Text
 import Control.Concurrent (forkIO)
 import Debug.Trace
@@ -75,7 +76,7 @@ distr2 = do
 
 main :: IO ()
 main = do
-  runTestTT $
+  results <- runTestTT $
     TestList [ TestLabel "self,send,receive"       $
                TestCase $ spreadLocal butter1
              , TestLabel "self,send,receive,spawn" $
@@ -87,4 +88,5 @@ main = do
              , TestLabel "sending an name over and replying" $
                TestCase distr2
              ]
-  return ()
+  checkFailure results
+
