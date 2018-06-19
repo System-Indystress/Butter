@@ -3,7 +3,7 @@ module Main where
 
 import Distrib.Butter.Lang
 import Distrib.Butter.Lib.Protocol
-import Test.HUnit
+import Butter.HUnit
 
 import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent (threadDelay)
@@ -32,7 +32,7 @@ instance Protocol P where
 
 main :: IO ()
 main = do
-  runTestTT $ TestCase $
+  results <- runTestTT $ TestCase $
     spreadLocal $ do
       node <- start Reset
       b1   <- alive node
@@ -65,4 +65,5 @@ main = do
       lift $ assertEqual "cast reset"    0     i5
       lift $ assertEqual "node is dead"  False b2
       return ()
-  return ()
+  checkFailure results
+
