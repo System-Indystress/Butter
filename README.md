@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/System-Indystress/Butter.svg?branch=master)](https://travis-ci.org/System-Indystress/Butter)
 # Butter
 For easily spreading around monadic computation
 ## Examples
