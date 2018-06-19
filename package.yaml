@@ -6,7 +6,7 @@ author:              "Matthew Ahrens"
 maintainer:          "matt.p.ahrens@gmail.com"
 copyright:           "2018 SID.run"
 category:            Distributed Computing, Concurrency
-synopsis:            Monad Transformer for Asyncronous Message Passing
+synopsis:            Monad Transformer for Asynchronous Message Passing
 description: <          A Monad Transformer for spreading arbitrary Monadic computation
                      across several processes using Erlang+OTP inspired conventions.
 
