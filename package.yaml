@@ -1,5 +1,5 @@
 name:                butter
-version:             0.1.0.4
+version:             0.1.0.5
 github:              "System-Indystress/Butter"
 license:             BSD3
 author:              "Matthew Ahrens"
@@ -29,7 +29,6 @@ dependencies:
 - bytestring
 - HUnit
 - forkable-monad >= 0.2.0.0
-
 
 library:
   source-dirs: src

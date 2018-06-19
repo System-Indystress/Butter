@@ -10,8 +10,7 @@ import Control.Concurrent.STM
 import Control.Monad.IO.Class (liftIO, MonadIO(..))
 import qualified Data.Map as M
 import Data.Map (Map(..))
-import Control.Exception
-import System.IO.Error (isDoesNotExistError)
+import Control.Exception (catch, SomeException)
 import Control.Monad.Free
 import Network.Simple.TCP as N
 import Control.Concurrent.Forkable
@@ -200,15 +199,11 @@ spread host mport actor =
                     }) <- liftIO $ readTVarIO stateVar
         eval me stateVar $ returnFriends $ M.keys fs
       eval me stateVar (Free (Connect name host port rest)) = do
-        conn <- liftIO $ tryJust (guard . isDoesNotExistError) $ connectSock (unpack host) (show port)
-        case conn of
-          Left _ -> do
-            liftIO yield
-            eval me stateVar (Free (Connect name host port rest))
-          Right (sock,addr) -> do
-            liftIO $ atomically $ modifyTVar stateVar $ (\s ->
-              s {friends = M.insert name sock $ friends s})
-            eval me stateVar rest
+        let untilM f = do {x <- f; (case x of Nothing -> untilM f ; Just x -> return x)}
+        (sock,addr) <- untilM $ liftIO $ (Just <$> connectSock (unpack host) (show port)) `catch` (\e -> let _ = e :: SomeException in return Nothing)
+        liftIO $ atomically $ modifyTVar stateVar $ (\s ->
+          s {friends = M.insert name sock $ friends s})
+        eval me stateVar rest
 
       eval me stateVar (Free (Spawn body returnPID)) = do
         (h,f) <-
