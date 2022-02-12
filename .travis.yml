@@ -33,8 +33,8 @@ before_install:
 
 install:
 # Build dependencies
-- stack --no-terminal --install-ghc test --only-dependencies --resolver nightly
+- stack --no-terminal --install-ghc test --only-dependencies --resolver lts-18.24 #nightly
 
 script:
 # Build the package, its tests, and its docs and run the tests
-- stack --no-terminal test --haddock --no-haddock-deps --resolver nightly
+- stack --no-terminal test --haddock --no-haddock-deps --resolver lts-18.24 #nightly
