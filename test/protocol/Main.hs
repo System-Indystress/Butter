@@ -1,10 +1,11 @@
-{-# LANGUAGE TypeFamilies, DeriveGeneric #-}
+{-# LANGUAGE TypeFamilies, DeriveGeneric, FlexibleInstances #-}
 module Main where
 
 import Distrib.Butter.Lang
 import Distrib.Butter.Lib.Protocol
 import Test.HUnit
 
+import Control.Monad.Free
 import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent (threadDelay)
 import Data.Aeson
@@ -29,6 +30,9 @@ instance Protocol P where
   handle Get     (PS i)  = return $ Reply (Val i) (PS i)
   handle (Add n) (PS m)  = return $ NoReply $ PS $ n + m
   handle Close   _       = return $ Terminate
+
+instance MonadFail (Free (Action IO)) where
+  fail = undefined
 
 main :: IO ()
 main = do
